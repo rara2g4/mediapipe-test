@@ -1,0 +1,43 @@
+export const EFFECT_METADATA = {
+  faceSticker: {
+    title: "PNG ステッカー貼り付け",
+    shortLabel: "PNG ステッカー",
+    category: "accessory",
+    categoryLabel: "アクセサリ",
+    badge: "Sticker",
+    keywords: ["sticker", "png", "glasses", "accessory", "ステッカー", "アクセサリ"],
+    requiredFeatures: ["Face"],
+    description:
+      "顔の目元を基準に PNG ステッカーを重ねる。画像素材を貼るタイプのエフェクトを足すときの土台。",
+  },
+  clownNose: {
+    title: "ピエロの鼻",
+    shortLabel: "ピエロ鼻",
+    category: "accessory",
+    categoryLabel: "アクセサリ",
+    badge: "Face",
+    keywords: ["clown", "nose", "red", "ピエロ", "鼻", "アクセサリ"],
+    requiredFeatures: ["Face"],
+    description: "鼻先ランドマークを基準に、赤い丸鼻を自然な影とハイライト付きで重ねる。",
+  },
+  squareHead: {
+    title: "スクエア頭部変形",
+    shortLabel: "スクエア頭部",
+    category: "reshape",
+    categoryLabel: "変形",
+    badge: "Warp",
+    keywords: ["square", "head", "warp", "reshape", "スクエア", "頭", "変形"],
+    requiredFeatures: ["Face", "Segmentation"],
+    description: "hair + face-skin の頭部マスクを使い、代表中心から左右へ四角く引き延ばす。",
+  },
+  triangleHead: {
+    title: "三角頭部変形",
+    shortLabel: "三角頭部",
+    category: "reshape",
+    categoryLabel: "変形",
+    badge: "Warp",
+    keywords: ["triangle", "head", "warp", "reshape", "三角", "頭", "変形"],
+    requiredFeatures: ["Face", "Segmentation"],
+    description: "hair + face-skin の頭部マスクを使い、上を広く下を細くして三角形に変形する。",
+  },
+};

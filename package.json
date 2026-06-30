@@ -1,0 +1,10 @@
+{
+  "name": "mediapipe-face-fx-studio",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "serve": "node tools/static-server.mjs --root app --port 8000",
+    "serve:dev": "node tools/static-server.mjs --root dev --port 8001",
+    "check": "node tools/check-js.mjs"
+  }
+}
