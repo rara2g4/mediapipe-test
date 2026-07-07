@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Face FX Studio</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <main class="capture-app app-screen" id="captureScreen">
+        <header class="app-header">
+          <div class="brand-block">
+            <p class="eyebrow">Web Face Filter</p>
+            <h1>Face FX Studio</h1>
+          </div>
+
+          <div class="source-actions" aria-label="入力操作">
+            <button id="startCameraButton" class="primary-button" type="button">カメラ</button>
+            <label class="file-action secondary-button">
+              <span>画像</span>
+              <input id="imageInput" type="file" accept="image/*" />
+            </label>
+            <button id="stopCameraButton" class="icon-button" type="button" aria-label="停止">停止</button>
+          </div>
+        </header>
+
+        <section class="studio-layout">
+          <section class="preview-column" aria-label="プレビュー">
+            <div class="stage-shell">
+              <div class="stage-frame">
+                <video id="cameraFeed" playsinline muted></video>
+                <img id="uploadedPreview" alt="アップロード画像プレビュー" />
+                <img id="captureFreezeOverlay" alt="" aria-hidden="true" />
+                <canvas id="outputCanvas"></canvas>
+                <div id="captureFlashOverlay" aria-hidden="true"></div>
+
+                <div class="preview-status-bar">
+                  <span id="sourceModeLabel" class="status-chip">idle</span>
+                  <span id="trackingEffectLabel" class="status-chip">PNG ステッカー</span>
+                  <span class="status-chip">顔 <span id="faceCountLabel">0</span></span>
+                </div>
+
+                <div class="capture-bar">
+                  <button id="saveToGalleryButton" class="capture-button" type="button">撮影</button>
+                </div>
+              </div>
+
+              <div class="status-line">
+                <span id="statusLabel">初期化前</span>
+                <button id="openGalleryButton" class="secondary-button" type="button">ギャラリー</button>
+              </div>
+            </div>
+          </section>
+
+          <aside class="side-panel" aria-label="エフェクト設定">
+            <section class="active-effect-panel">
+              <p class="panel-label">Selected</p>
+              <h2 id="activeEffectTitle">PNG ステッカー貼り付け</h2>
+              <p id="activeEffectDescription">
+                顔の目元を基準に PNG ステッカーを重ねる。
+              </p>
+            </section>
+
+            <section class="effect-controls-panel">
+              <div class="effect-param-group" data-effect-panel="faceSticker">
+                <label class="slider-field">
+                  <span>サイズ</span>
+                  <input
+                    id="stickerScaleSlider"
+                    type="range"
+                    min="0.8"
+                    max="2.0"
+                    step="0.05"
+                    value="1.25"
+                    data-effect-param="stickerScale"
+                  />
+                </label>
+                <label class="slider-field">
+                  <span>上下位置</span>
+                  <input
+                    id="stickerYOffsetSlider"
+                    type="range"
+                    min="-0.4"
+                    max="0.3"
+                    step="0.02"
+                    value="-0.04"
+                    data-effect-param="stickerYOffset"
+                  />
+                </label>
+                <label class="slider-field">
+                  <span>透明度</span>
+                  <input
+                    id="stickerOpacitySlider"
+                    type="range"
+                    min="0.35"
+                    max="1"
+                    step="0.05"
+                    value="0.92"
+                    data-effect-param="stickerOpacity"
+                  />
+                </label>
+              </div>
+
+              <div class="effect-param-group" data-effect-panel="clownNose">
+                <label class="slider-field">
+                  <span>鼻サイズ</span>
+                  <input
+                    id="clownNoseScaleSlider"
+                    type="range"
+                    min="0.6"
+                    max="1.8"
+                    step="0.05"
+                    value="1"
+                    data-effect-param="clownNoseScale"
+                  />
+                </label>
+                <label class="slider-field">
+                  <span>透明度</span>
+                  <input
+                    id="clownNoseOpacitySlider"
+                    type="range"
+                    min="0.45"
+                    max="1"
+                    step="0.05"
+                    value="0.96"
+                    data-effect-param="clownNoseOpacity"
+                  />
+                </label>
+              </div>
+
+              <div class="effect-param-group" data-effect-panel="squareHead triangleHead">
+                <label class="slider-field">
+                  <span>強度</span>
+                  <input
+                    id="intensitySlider"
+                    type="range"
+                    min="0.2"
+                    max="1.3"
+                    step="0.05"
+                    value="0.8"
+                    data-effect-param="intensity"
+                  />
+                </label>
+                <label class="slider-field">
+                  <span>変形幅</span>
+                  <input
+                    id="squareScaleSlider"
+                    type="range"
+                    min="1.2"
+                    max="2.8"
+                    step="0.05"
+                    value="1.8"
+                    data-effect-param="squareScale"
+                  />
+                </label>
+                <label class="slider-field">
+                  <span>横伸ばし</span>
+                  <input
+                    id="stretchXSlider"
+                    type="range"
+                    min="0.8"
+                    max="2.0"
+                    step="0.05"
+                    value="1.25"
+                    data-effect-param="stretchX"
+                  />
+                </label>
+              </div>
+            </section>
+
+            <details class="dev-panel">
+              <summary>Dev Mode</summary>
+              <dl class="debug-grid">
+                <div>
+                  <dt>手</dt>
+                  <dd id="handCountLabel">0</dd>
+                </div>
+                <div>
+                  <dt>姿勢</dt>
+                  <dd id="poseCountLabel">0</dd>
+                </div>
+                <div>
+                  <dt>Seg</dt>
+                  <dd id="segmentationLabel">off</dd>
+                </div>
+              </dl>
+              <label class="check-item">
+                <input id="debugRoiToggle" type="checkbox" data-effect-param="debugRoiEnabled" />
+                <span>ROI</span>
+              </label>
+              <div class="chart-frame">
+                <canvas id="blendshapeChart" width="240" height="240"></canvas>
+              </div>
+              <ul id="blendshapeList" class="blendshape-list">
+                <li>入力待ち</li>
+              </ul>
+            </details>
+          </aside>
+        </section>
+
+        <section class="effect-tray" aria-label="エフェクト一覧">
+          <div class="effect-tray-head">
+            <div class="effect-filter-row">
+              <label class="search-field">
+                <span class="visually-hidden">エフェクト検索</span>
+                <input id="effectSearchInput" type="search" placeholder="検索" autocomplete="off" />
+              </label>
+              <div id="effectCategoryTabs" class="category-tabs" aria-label="カテゴリ"></div>
+            </div>
+            <label class="select-field visually-hidden">
+              <span>現在のエフェクト</span>
+              <select id="activeEffectSelect"></select>
+            </label>
+          </div>
+
+          <div class="effect-rail" id="effectRail"></div>
+        </section>
+      </main>
+
+      <section class="gallery-screen app-screen" id="galleryScreen" hidden>
+        <header class="gallery-header">
+          <div>
+            <p class="eyebrow">Gallery</p>
+            <h1>保存した画像</h1>
+          </div>
+          <button id="backToCaptureButton" class="secondary-button" type="button">撮影へ戻る</button>
+        </header>
+
+        <div class="gallery-layout">
+          <aside class="gallery-list-panel">
+            <p id="galleryStatusLabel" class="gallery-status">一時保存はまだありません。</p>
+            <div id="temporaryGallery" class="gallery-grid gallery-grid-screen">
+              <p class="gallery-empty">一時保存はまだありません。</p>
+            </div>
+          </aside>
+
+          <section class="gallery-preview-panel">
+            <div class="gallery-preview-frame">
+              <img id="galleryPreviewImage" alt="選択中の一時保存プレビュー" />
+              <div id="galleryPreviewEmpty" class="gallery-preview-empty">
+                画像を選択してください
+              </div>
+            </div>
+
+            <div class="gallery-preview-footer">
+              <div>
+                <h2 id="galleryPreviewTitle">選択中の画像はありません</h2>
+                <p id="galleryPreviewDescription">左の一覧から画像を選択できます。</p>
+              </div>
+              <div class="gallery-preview-actions">
+                <button id="downloadSelectedShotButton" class="primary-button" type="button" disabled>
+                  PNG保存
+                </button>
+                <button id="deleteSelectedShotButton" class="secondary-button" type="button" disabled>
+                  削除
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

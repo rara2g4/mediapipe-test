@@ -1,0 +1,127 @@
+このテキストは、別の ChatGPT にこのプロジェクトを説明するための共有メモです。
+
+プロジェクト名:
+MediaPipe Face FX Studio
+
+場所:
+C:\mediapipe-test-main
+
+アプリ本体:
+C:\mediapipe-test-main\app
+
+概要:
+MediaPipe Tasks Vision の Face Landmarker と Image Segmenter を使い、Web カメラまたはアップロード画像に Canvas ベースの顔加工エフェクトを重ねる静的 Web アプリです。ビルドツールなしの native ES modules 構成です。
+
+起動方法:
+リポジトリ直下で以下を実行します。
+
+  npm.cmd run serve
+
+その後、Chrome などで以下を開きます。
+
+  http://127.0.0.1:8000/
+
+チェック方法:
+
+  npm.cmd run check
+
+このコマンドは tools/check-js.mjs を使い、app/src/**/*.js と tools/**/*.mjs を自動検出して node --check を実行します。
+
+現在の構造:
+
+- app/index.html
+  画面構造。通常ユーザー向け UI の土台。
+
+- app/styles.css
+  レイアウト、プレビュー、エフェクトトレイ、ギャラリー、レスポンシブ対応。
+
+- app/src/main.js
+  アプリ起動、状態初期化、各 controller/view/runtime の接続。
+
+- app/src/core/config.js
+  CDN バージョン、モデル URL、IndexedDB 名などの設定。
+
+- app/src/core/appState.js
+  アプリ状態の初期値と createStateActions。
+
+- app/src/core/math.js
+  clamp / lerp などの共通数値ヘルパー。
+
+- app/src/core/pageCleanup.js
+  pagehide / beforeunload でカメラ stream、画像 Object URL、撮影タイマーを解放する。
+
+- app/src/input/cameraInput.js
+  カメラ開始、停止、動画フレーム推論ループ。MediaPipe が失敗してもカメラ表示は維持する方針。
+
+- app/src/input/imageInput.js
+  画像ファイルの読み込みと画像モードへの切り替え。
+
+- app/src/mediapipe/mediaPipeRuntime.js
+  MediaPipe detector を遅延読み込みする境界。CDN 失敗時でもアプリ本体を止めない。
+
+- app/src/mediapipe/detectors.js
+  FaceLandmarker / ImageSegmenter の初期化、runningMode 切り替え、セグメンテーション実行。
+
+- app/src/mediapipe/detectionSnapshot.js
+  MediaPipe の検出結果を描画しやすい snapshot へ整形する。
+
+- app/src/mediapipe/detectionConstants.js
+  顔ランドマーク番号とセグメンテーションカテゴリ。
+
+- app/src/effects/effectMetadata.js
+  エフェクトの表示名、説明、カテゴリ、検索 keywords、必要機能。
+
+- app/src/effects/effectCatalogView.js
+  metadata からカテゴリタブ、検索、横スクロールのエフェクト一覧を生成する。
+
+- app/src/effects/effectRegistry.js
+  各エフェクトの Canvas 描画実装と登録。
+
+- app/src/effects/effectAssets.js
+  エフェクト用の生成画像アセット。
+
+- app/src/rendering/stageRenderer.js
+  Canvas ステージ、オフスクリーンバッファ、デバッグ描画。
+
+- app/src/rendering/blendshapeView.js
+  blendshape チャートとリスト表示。
+
+- app/src/gallery/galleryController.js
+  一時保存、選択、削除、PNG ダウンロード、IndexedDB と view の接続。
+
+- app/src/gallery/store.js
+  一時保存ギャラリーの IndexedDB 永続化。
+
+- app/src/gallery/view.js
+  ギャラリー一覧とプレビューの DOM 更新。
+
+- app/src/ui/dom.js
+  必須 DOM 要素とエフェクト操作部品の取得。DOM API で UI 要素を作る helper もここ。
+
+- app/src/ui/events.js
+  DOM イベントの配線。
+
+- dev/camera-test.html
+  MediaPipe を使わない、カメラ権限とカメラ映像だけの切り分けページ。
+
+重要な設計方針:
+1. カメラ表示は MediaPipe 初期化に依存させない。
+2. MediaPipe detector は app/src/mediapipe/mediaPipeRuntime.js から遅延読み込みする。
+3. state の書き換えは createStateActions に集約する。
+4. DOM 生成はできるだけ innerHTML ではなく DOM API を使う。
+5. 通常ユーザー向け UI ではカメラ/画像プレビュー、エフェクト選択、撮影、保存、ギャラリーを中心に見せる。
+6. ROI、blendshape、セグメンテーションなどは Dev Mode 側に寄せる。
+
+エフェクト追加時に見る場所:
+1. app/src/effects/effectMetadata.js
+2. app/src/effects/effectRegistry.js
+3. 必要なら app/src/effects/effectAssets.js
+4. パラメータ UI が必要なら app/index.html と app/src/ui/dom.js / app/src/ui/events.js
+
+カメラが出ない時の切り分け:
+まず以下を開き、ブラウザ権限と getUserMedia だけを確認する。
+
+  npm.cmd run serve:dev
+  http://127.0.0.1:8001/camera-test.html
+
+通常の npm.cmd run serve は app/ を配信ルートにしているため、dev/camera-test.html は npm.cmd run serve:dev で別ポートから開く。
