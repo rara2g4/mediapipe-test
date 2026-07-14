@@ -31,6 +31,17 @@ export const EFFECT_METADATA = {
     description:
       "横を向いて口を1秒開き続けると、口元から透過動画のビームを1回だけ画面端まで再生する。",
   },
+  eatCake: {
+    title: "ケーキを食べる",
+    shortLabel: "ケーキ",
+    category: "accessory",
+    categoryLabel: "アクセサリ",
+    badge: "Cake",
+    keywords: ["cake", "eat", "mouth", "ケーキ", "食べる", "口"],
+    requiredFeatures: ["Face"],
+    description:
+      "口を開けると画面下からケーキが現れ、0.5秒で口元へ移動する。口を閉じると三角形の破片を出して食べる。",
+  },
   squareHead: {
     title: "スクエア頭部変形",
     shortLabel: "スクエア頭部",

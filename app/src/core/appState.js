@@ -19,6 +19,7 @@ export function createInitialState() {
     assets: {
       faceSticker: null,
       mouthBeamVideo: null,
+      cakeImage: null,
     },
     temporaryCaptures: [],
     selectedCaptureId: null,
