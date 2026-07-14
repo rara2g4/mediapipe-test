@@ -18,6 +18,7 @@ export function createInitialState() {
     activeEffectId: "faceSticker",
     assets: {
       faceSticker: null,
+      mouthBeamVideo: null,
     },
     temporaryCaptures: [],
     selectedCaptureId: null,

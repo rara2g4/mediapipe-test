@@ -7,6 +7,42 @@ function imageFromDataUrl(dataUrl) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// 動画アセット読み込み
+// 口ビームは透過 WebM を HTMLVideoElement として保持し、
+// canvas の drawImage(video, ...) で毎フレーム貼り込む。
+// ---------------------------------------------------------------------------
+
+function videoFromAssetUrl(assetUrl) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.defaultMuted = true;
+    video.loop = false;
+    video.playsInline = true;
+    video.preload = "auto";
+
+    video.addEventListener(
+      "loadeddata",
+      () => {
+        video.pause();
+        resolve(video);
+      },
+      { once: true },
+    );
+
+    video.addEventListener(
+      "error",
+      () => {
+        reject(new Error(`Failed to load video asset: ${assetUrl}`));
+      },
+      { once: true },
+    );
+
+    video.src = assetUrl;
+  });
+}
+
 async function createFaceStickerAsset() {
   const stickerCanvas = document.createElement("canvas");
   stickerCanvas.width = 512;
@@ -89,8 +125,22 @@ async function createFaceStickerAsset() {
   return imageFromDataUrl(stickerCanvas.toDataURL("image/png"));
 }
 
+// ---------------------------------------------------------------------------
+// 各エフェクト用アセット生成
+// ここが「画像素材」「動画素材」をまとめて初期化する入口。
+// 新しい外部素材エフェクトを足すときは、まずこの層へ置く。
+// ---------------------------------------------------------------------------
+
+async function createMouthBeamVideoAsset() {
+  return videoFromAssetUrl(new URL("../../assets/beam_alpha.webm", import.meta.url).href);
+}
+
 export async function ensureEffectAssets(assets) {
   if (!assets.faceSticker) {
     assets.faceSticker = await createFaceStickerAsset();
+  }
+
+  if (!assets.mouthBeamVideo) {
+    assets.mouthBeamVideo = await createMouthBeamVideoAsset();
   }
 }

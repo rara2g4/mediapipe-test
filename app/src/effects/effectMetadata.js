@@ -20,6 +20,17 @@ export const EFFECT_METADATA = {
     requiredFeatures: ["Face"],
     description: "鼻先ランドマークを基準に、赤い丸鼻を自然な影とハイライト付きで重ねる。",
   },
+  mouthBeam: {
+    title: "口ビーム",
+    shortLabel: "口ビーム",
+    category: "accessory",
+    categoryLabel: "アクセサリ",
+    badge: "Beam",
+    keywords: ["beam", "mouth", "laser", "video", "ビーム", "口", "動画"],
+    requiredFeatures: ["Face"],
+    description:
+      "横を向いて口を1秒開き続けると、口元から透過動画のビームを1回だけ画面端まで再生する。",
+  },
   squareHead: {
     title: "スクエア頭部変形",
     shortLabel: "スクエア頭部",

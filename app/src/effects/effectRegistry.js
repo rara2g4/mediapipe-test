@@ -2,6 +2,12 @@ import { EFFECT_METADATA } from "./effectMetadata.js";
 import { isHeadCategory, isPersonCategory, rowHasMask } from "../mediapipe/detectionSnapshot.js";
 import { clamp, lerp } from "../core/math.js";
 
+// ---------------------------------------------------------------------------
+// エフェクト共通メタデータ組み立て
+// 各エフェクトは id / 必要検出 / 実行関数だけを定義し、
+// 表示名や説明は effectMetadata.js から合流させる。
+// ---------------------------------------------------------------------------
+
 function createEffect({ id, requiredDetections, run }) {
   return {
     id,
@@ -10,6 +16,12 @@ function createEffect({ id, requiredDetections, run }) {
     run,
   };
 }
+
+// ---------------------------------------------------------------------------
+// 顔に画像や図形を重ねる基本エフェクト群
+// 顔ランドマークから基準点を作り、そこへ視覚素材を貼り込む。
+// 新しい顔パーツ系エフェクトはまずこの並びに増える。
+// ---------------------------------------------------------------------------
 
 function faceStickerEffect(effectContext) {
   const stickerImage = effectContext.assets.faceSticker;
@@ -38,6 +50,210 @@ function faceStickerEffect(effectContext) {
     );
     effectContext.ctx.restore();
   });
+}
+
+// ---------------------------------------------------------------------------
+// 口ビーム用の判定・再生状態
+// 「横向き + 口開き」を 1 秒維持できたかをここで管理し、
+// 発射中の向きや再生中フラグもエフェクト内部で完結させる。
+// ---------------------------------------------------------------------------
+
+const BEAM_DELAY_MS = 1000;
+const BEAM_MOUTH_OPEN_THRESHOLD = 0.038;
+const BEAM_SIDEWAYS_THRESHOLD = 0.14;
+const BEAM_DRAW_HEIGHT_RATIO = 0.68;
+const BEAM_DRAW_VERTICAL_OFFSET = 0.04;
+
+const mouthBeamRuntime = {
+  activeVideo: null,
+  openStartedAt: 0,
+  hasTriggeredCurrentOpen: false,
+  isPlaying: false,
+  playbackDirection: 1,
+  lastVisibleDirection: 1,
+};
+
+function resetMouthBeamRuntime() {
+  if (mouthBeamRuntime.activeVideo) {
+    mouthBeamRuntime.activeVideo.pause();
+    mouthBeamRuntime.activeVideo.currentTime = 0;
+  }
+
+  mouthBeamRuntime.activeVideo = null;
+  mouthBeamRuntime.openStartedAt = 0;
+  mouthBeamRuntime.hasTriggeredCurrentOpen = false;
+  mouthBeamRuntime.isPlaying = false;
+  mouthBeamRuntime.playbackDirection = 1;
+  mouthBeamRuntime.lastVisibleDirection = 1;
+}
+
+export function resetAllEffectRuntime() {
+  resetMouthBeamRuntime();
+}
+
+function normalizedMouthOpenAmount({ anchors, bounds }) {
+  const mouthGap = Math.hypot(
+    anchors.mouthLower.x - anchors.mouthUpper.x,
+    anchors.mouthLower.y - anchors.mouthUpper.y,
+  );
+  return mouthGap / Math.max(bounds.faceH, 1);
+}
+
+function horizontalTurnScore({ anchors }) {
+  const eyeMidX = (anchors.leftEyeCenter.x + anchors.rightEyeCenter.x) / 2;
+  const eyeDistance = Math.hypot(
+    anchors.rightEyeCenter.x - anchors.leftEyeCenter.x,
+    anchors.rightEyeCenter.y - anchors.leftEyeCenter.y,
+  );
+
+  if (eyeDistance < 1) {
+    return 0;
+  }
+
+  return (anchors.noseTip.x - eyeMidX) / eyeDistance;
+}
+
+function playbackFinished(video) {
+  if (!video) {
+    return true;
+  }
+
+  if (video.ended) {
+    return true;
+  }
+
+  if (Number.isFinite(video.duration) && video.duration > 0) {
+    return video.currentTime >= Math.max(0, video.duration - 1 / 60);
+  }
+
+  return false;
+}
+
+function startMouthBeamPlayback(video, direction) {
+  mouthBeamRuntime.activeVideo = video;
+  mouthBeamRuntime.openStartedAt = 0;
+  mouthBeamRuntime.hasTriggeredCurrentOpen = true;
+  mouthBeamRuntime.isPlaying = true;
+  mouthBeamRuntime.playbackDirection = direction;
+  mouthBeamRuntime.lastVisibleDirection = direction;
+
+  video.pause();
+  video.currentTime = 0;
+
+  const playPromise = video.play();
+  if (typeof playPromise?.catch === "function") {
+    playPromise.catch(() => {
+      mouthBeamRuntime.isPlaying = false;
+      video.pause();
+      video.currentTime = 0;
+    });
+  }
+}
+
+function stopMouthBeamPlayback(video, { resetChargeState = false } = {}) {
+  mouthBeamRuntime.isPlaying = false;
+
+  if (resetChargeState) {
+    mouthBeamRuntime.openStartedAt = 0;
+    mouthBeamRuntime.hasTriggeredCurrentOpen = false;
+  }
+
+  if (!video) {
+    return;
+  }
+
+  video.pause();
+  video.currentTime = 0;
+}
+
+function syncMouthBeamPlayback(trackedFace, beamVideo, nowMs) {
+  const mouthOpenAmount = normalizedMouthOpenAmount(trackedFace);
+  const turnScore = horizontalTurnScore(trackedFace);
+  const isSideways = Math.abs(turnScore) >= BEAM_SIDEWAYS_THRESHOLD;
+  const isMouthOpen = mouthOpenAmount >= BEAM_MOUTH_OPEN_THRESHOLD;
+  const isChargingPose = isSideways && isMouthOpen;
+  const visibleDirection = turnScore < 0 ? -1 : 1;
+
+  mouthBeamRuntime.activeVideo = beamVideo;
+  mouthBeamRuntime.lastVisibleDirection = visibleDirection;
+
+  if (mouthBeamRuntime.isPlaying) {
+    if (!isMouthOpen) {
+      stopMouthBeamPlayback(beamVideo, { resetChargeState: true });
+      return {
+        direction: visibleDirection,
+        requestContinue: false,
+      };
+    }
+
+    if (playbackFinished(beamVideo)) {
+      stopMouthBeamPlayback(beamVideo);
+    }
+
+    return {
+      direction: mouthBeamRuntime.playbackDirection,
+      requestContinue: mouthBeamRuntime.isPlaying,
+    };
+  }
+
+  if (!isChargingPose) {
+    mouthBeamRuntime.openStartedAt = 0;
+    mouthBeamRuntime.hasTriggeredCurrentOpen = false;
+    return {
+      direction: visibleDirection,
+      requestContinue: false,
+    };
+  }
+
+  if (!mouthBeamRuntime.openStartedAt) {
+    mouthBeamRuntime.openStartedAt = nowMs;
+  }
+
+  if (!mouthBeamRuntime.hasTriggeredCurrentOpen && nowMs - mouthBeamRuntime.openStartedAt >= BEAM_DELAY_MS) {
+    startMouthBeamPlayback(beamVideo, visibleDirection);
+  }
+
+  return {
+    direction: mouthBeamRuntime.isPlaying ? mouthBeamRuntime.playbackDirection : visibleDirection,
+    requestContinue: !mouthBeamRuntime.hasTriggeredCurrentOpen || mouthBeamRuntime.isPlaying,
+  };
+}
+
+function drawMouthBeamVideo(effectContext, trackedFace, beamVideo, direction) {
+  const { mouthCenter } = trackedFace.anchors;
+  const beamHeight = Math.max(trackedFace.bounds.faceH * BEAM_DRAW_HEIGHT_RATIO, 28);
+  const distanceToEdge =
+    direction > 0
+      ? Math.max(1, effectContext.frameBufferCanvas.width - mouthCenter.x)
+      : Math.max(1, mouthCenter.x);
+  const drawY = mouthCenter.y - beamHeight / 2 - trackedFace.bounds.faceH * BEAM_DRAW_VERTICAL_OFFSET;
+
+  effectContext.ctx.save();
+  effectContext.ctx.translate(mouthCenter.x, drawY);
+  if (direction < 0) {
+    effectContext.ctx.scale(-1, 1);
+  }
+  effectContext.ctx.drawImage(beamVideo, 0, 0, distanceToEdge, beamHeight);
+  effectContext.ctx.restore();
+}
+
+function mouthBeamEffect(effectContext) {
+  const beamVideo = effectContext.assets.mouthBeamVideo;
+  const trackedFace = effectContext.detections.face.trackedFaces[0];
+
+  if (!beamVideo || !trackedFace) {
+    resetMouthBeamRuntime();
+    return { requestContinue: false };
+  }
+
+  const playbackState = syncMouthBeamPlayback(trackedFace, beamVideo, performance.now());
+  if (mouthBeamRuntime.isPlaying) {
+    drawMouthBeamVideo(effectContext, trackedFace, beamVideo, playbackState.direction);
+  }
+
+  return {
+    requestContinue: playbackState.requestContinue,
+  };
 }
 
 function clownNoseEffect(effectContext) {
@@ -318,6 +534,11 @@ export const effects = [
     id: "clownNose",
     requiredDetections: ["face"],
     run: clownNoseEffect,
+  }),
+  createEffect({
+    id: "mouthBeam",
+    requiredDetections: ["face"],
+    run: mouthBeamEffect,
   }),
   createEffect({
     id: "squareHead",
